@@ -28,7 +28,30 @@ function navConvocatoria(dir) {
   navIndex += dir;
   if (navIndex < 0) navIndex = 0;
   if (navIndex >= allData.length) navIndex = allData.length - 1;
-  data = allData[navIndex];
+  if (allData.length === 0) {
+    data = { fecha: getProximoDomingo(), hora: '10:00', cenaada: false, insidious: [] };
+  } else {
+    data = allData[navIndex];
+  }
+  render();
+}
+
+function borrarConvocatoria() {
+  if (!confirm('Borrar esta convocatoria?')) return;
+  
+  if (navIndex === 0 && historico.length > 0) {
+    data = historico[0];
+    historico.shift();
+  } else if (navIndex > 0) {
+    historico.splice(navIndex - 1, 1);
+  } else {
+    data = { fecha: getProximoDomingo(), hora: '10:00', cenaada: false, insidious: [] };
+  }
+  
+  allData = [data, ...historico].sort((a,b) => a.fecha.localeCompare(b.fecha));
+  navIndex = 0;
+  saveCache();
+  syncServer();
   render();
 }
 
