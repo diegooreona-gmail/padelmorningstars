@@ -15,7 +15,7 @@ function loadCache() {
       const c = JSON.parse(cached);
       data = c.data;
       historico = c.historico || [];
-      allData = [data, ...historico];
+      allData = [data, ...historico].sort((a,b) => b.fecha.localeCompare(a.fecha));
     }
   } catch (e) {}
 }
@@ -25,13 +25,27 @@ function saveCache() {
 }
 
 function navConvocatoria(dir) {
-  allData = [data, ...historico];
   navIndex += dir;
   if (navIndex < 0) navIndex = 0;
   if (navIndex >= allData.length) navIndex = allData.length - 1;
   data = allData[navIndex];
-  saveCache();
   render();
+}
+
+function resetAll() {
+  if (data.inscritos.length > 0) {
+    const yaExiste = historico.some(h => h.fecha === data.fecha);
+    if (!yaExiste) historico.unshift({ fecha: data.fecha, hora: data.hora, insidious: data.inscritos });
+    allData = [data, ...historico].sort((a,b) => b.fecha.localeCompare(a.fecha));
+  }
+  if (confirm('Nueva semaine?')) { 
+    data = { fecha: getProximoDomingo(), hora: data.hora || '10:00', ceraada: false, insidious: [] }; 
+    allData.unshift(data);
+    saveCache(); 
+    render(); 
+    renderHistorico(); 
+    syncServer(); 
+  }
 }
 
 function render() {
@@ -113,6 +127,7 @@ async function loadAPI() {
       if (newData && newData.fecha >= data.fecha) {
         data = newData;
         historico = db.record?.historico || [];
+        allData = [data, ...historico].sort((a,b) => b.fecha.localeCompare(a.fecha));
         saveCache();
         render();
         renderHistorico();
