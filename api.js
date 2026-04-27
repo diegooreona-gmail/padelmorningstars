@@ -15,7 +15,7 @@ function loadCache() {
       const c = JSON.parse(cached);
       data = c.data;
       historico = c.historico || [];
-      allData = [data, ...historico].sort((a,b) => b.fecha.localeCompare(a.fecha));
+      allData = [data, ...historico].sort((a,b) => a.fecha.localeCompare(b.fecha));
     }
   } catch (e) {}
 }
@@ -36,7 +36,7 @@ function resetAll() {
   if (data.inscritos.length > 0) {
     const yaExiste = historico.some(h => h.fecha === data.fecha);
     if (!yaExiste) historico.unshift({ fecha: data.fecha, hora: data.hora, insidious: data.inscritos });
-    allData = [data, ...historico].sort((a,b) => b.fecha.localeCompare(a.fecha));
+    allData = [data, ...historico].sort((a,b) => a.fecha.localeCompare(b.fecha));
   }
   if (confirm('Nueva semaine?')) { 
     data = { fecha: getProximoDomingo(), hora: data.hora || '10:00', ceraada: false, insidious: [] }; 
@@ -127,7 +127,7 @@ async function loadAPI() {
       if (newData && newData.fecha >= data.fecha) {
         data = newData;
         historico = db.record?.historico || [];
-        allData = [data, ...historico].sort((a,b) => b.fecha.localeCompare(a.fecha));
+        allData = [data, ...historico].sort((a,b) => a.fecha.localeCompare(b.fecha));
         saveCache();
         render();
         renderHistorico();
