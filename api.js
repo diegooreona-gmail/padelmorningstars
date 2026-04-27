@@ -1,35 +1,76 @@
 const BIN_ID = '69ef4165856a68218979b5d0';
 const API_KEY = '$2a$10$TXXftZ1HDMqxEca5vs6HgeQU6y9db07I0m34T9h2585XK90tb/6v2';
 const BASE_URL = 'https://api.jsonbin.io/v3/b';
+const CACHE_KEY = 'padel_cache';
 
 let data = { fecha: '', hora: '', cerrada: false, inscritos: [] };
 let historico = [];
 
-async function loadAPI() {
+function loadCache() {
   try {
-    console.log('Loading from:', `${BASE_URL}/${BIN_ID}/latest`);
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const c = JSON.parse(cached);
+      data = c.data;
+      historico = c.historico || [];
+      console.log('Loaded from cache:', data);
+      render();
+      renderHistorico();
+    }
+  } catch (e) { console.log('No cache'); }
+}
+
+function saveCache() {
+  localStorage.setItem(CACHE_KEY, JSON.stringify({ data, historico }));
+}
+
+async function loadAPI() {
+  loadCache();
+  try {
     const res = await fetch(`${BASE_URL}/${BIN_ID}/latest`, {
       headers: { 'X-Master-Key': API_KEY }
     });
-    console.log('Response:', res.status);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const db = await res.json();
-    console.log('DB response:', db);
-    data = db.record?.data || db.data || { fecha: getProximoDomingo(), hora: '10:00', cerrada: false, inscritos: [] };
+    data = db.record?.data || db.data || data;
     historico = db.record?.historico || db.historico || [];
     if (!data.fecha) data.fecha = getProximoDomingo();
     if (!data.hora) data.hora = '10:00';
     if (data.cerrada === undefined) data.cerrada = false;
-    console.log('data loaded:', data);
+    saveCache();
+    console.log('Loaded from server:', data);
+    render();
+    renderHistorico();
   } catch (e) {
-    console.error('Error loadAPI:', e);
-    data = { fecha: getProximoDomingo(), hora: '10:00', kterad: false, inscritos: [] };
-    historico = [];
+    console.error('Load error:', e);
+  }
+}
+
+async function loadAPI() {
+  loadCache();
+  try {
+    const res = await fetch(`${BASE_URL}/${BIN_ID}/latest`, {
+      headers: { 'X-Master-Key': API_KEY }
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const db = await res.json();
+    data = db.record?.data || db.data || data;
+    historico = db.record?.historico || db.historico || [];
+    if (!data.fecha) data.fecha = getProximoDomingo();
+    if (!data.hora) data.hora = '10:00';
+    if (data.cerrada === undefined) data.cerrada = false;
+    saveCache();
+    console.log('Loaded from server:', data);
+    render();
+    renderHistorico();
+  } catch (e) {
+    console.error('Load error:', e);
   }
 }
 
 async function saveAPI() {
   try {
+    saveCache();
     const response = await fetch(`${BASE_URL}/${BIN_ID}`, {
       method: 'PUT',
       headers: {
