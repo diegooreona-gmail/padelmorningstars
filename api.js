@@ -1,0 +1,220 @@
+const BIN_ID = '69ef4165856a68218979b5d0';
+const API_KEY = '$2a$10$TXXftZ1HDMqxEca5vs6HgeQU6y9db07I0m34T9h2585XK90tb/6v2';
+const BASE_URL = 'https://api.jsonbin.io/v3/b';
+
+let data = { fecha: '', hora: '', cerrada: false, inscritos: [] };
+let historico = [];
+
+async function loadAPI() {
+  try {
+    console.log('Loading from:', `${BASE_URL}/${BIN_ID}/latest`);
+    const res = await fetch(`${BASE_URL}/${BIN_ID}/latest`, {
+      headers: { 'X-Master-Key': API_KEY }
+    });
+    console.log('Response:', res.status);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const db = await res.json();
+    console.log('DB response:', db);
+    data = db.record?.data || db.data || { fecha: getProximoDomingo(), hora: '10:00', cerrada: false, inscritos: [] };
+    historico = db.record?.historico || db.historico || [];
+    if (!data.fecha) data.fecha = getProximoDomingo();
+    if (!data.hora) data.hora = '10:00';
+    if (data.cerrada === undefined) data.cerrada = false;
+    console.log('data loaded:', data);
+  } catch (e) {
+    console.error('Error loadAPI:', e);
+    data = { fecha: getProximoDomingo(), hora: '10:00', kterad: false, inscritos: [] };
+    historico = [];
+  }
+}
+
+async function saveAPI() {
+  try {
+    const response = await fetch(`${BASE_URL}/${BIN_ID}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': API_KEY
+      },
+      body: JSON.stringify({ data, historico })
+    });
+    if (!response.ok) throw new Error('Save failed: ' + response.status);
+    console.log('Saved');
+  } catch (e) {
+    console.error('Save error:', e);
+    alert('Error guardando. Revisa consola.');
+  }
+}
+
+function getProximoDomingo() {
+  const hoy = new Date();
+  const dia = hoy.getDay();
+  const dias = dia === 0 ? 7 : 7 - dia;
+  const domingo = new Date(hoy);
+  domingo.setDate(hoy.getDate() + dias);
+  return domingo.toISOString().split('T')[0];
+}
+
+function getFechaFormateada(fechaISO) {
+  const fecha = new Date(fechaISO + 'T12:00:00');
+  return fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function getHoraFormateada(hora) { return hora; }
+
+function render() {
+  document.getElementById('fecha').textContent = getFechaFormateada(data.fecha) + ' a las ' + getHoraFormateada(data.hora);
+  const btnCerrar = document.getElementById('btnCerrar');
+  btnCerrar.textContent = data.cerrada ? 'Abrir Convocatoria' : 'Cerrar Convocatoria';
+  const input = document.getElementById('nombreInput');
+  const btnApuntar = document.getElementById('btnApuntar');
+  input.style.display = data.cerrada ? 'none' : 'block';
+  btnApuntar.style.display = data.cerrada ? 'none' : 'block';
+  const pistasContainer = document.getElementById('pistas');
+  const colaContainer = document.getElementById('cola');
+  const total = data.inscritos.length;
+  let numPistas, enPistas;
+  if (data.cerrada) {
+    numPistas = Math.floor(total / 4);
+    enPistas = numPistas * 4;
+  } else {
+    numPistas = Math.ceil(total / 4);
+    enPistas = numPistas * 4;
+  }
+  let htmlPistas = '';
+  for (let i = 0; i < numPistas; i++) {
+    const start = i * 4;
+    const pistaJugadores = data.inscritos.slice(start, start + 4);
+    const completa = pistaJugadores.length === 4;
+    htmlPistas += '<div class="pista-card"><div class="pista-header"><span class="pista-nombre">Pista ' + (i + 1) + '</span><span class="pista-badge ' + (completa ? 'completa' : '') + '">' + pistaJugadores.length + '/4</span></div><div class="pista-jugadores">' + (pistaJugadores.length === 0 ? '<div class="empty-pista">Esperando...</div>' : '') + pistaJugadores.map((j, idx) => '<div class="jugador anim"><span class="jugador-num">' + (start + idx + 1) + '</span><span class="jugador-nombre">' + j.nombre + '</span><button class="jugador-delete" onclick="eliminar(' + (start + idx) + ')">×</button></div>').join('') + '</div></div>';
+  }
+  if (numPistas === 0) htmlPistas += '<div class="empty-pista">¡Sé el primero!</div>';
+  if (data.cerrada) htmlPistas += '<div class="cerrada-badge">CERRADA</div>';
+  pistasContainer.innerHTML = htmlPistas;
+  let htmlCola = '';
+  const colaJugadores = data.inscritos.slice(enPistas);
+  if (data.cerrada) {
+    if (colaJugadores.length === 0 && numPistas > 0) htmlCola = '<div class="empty-pista">Todas completas</div>';
+    else if (numPistas > 0) {
+      htmlCola += '<div class="section-title" style="margin-top:16px">Suplentes</div>' + colaJugadores.map((j, idx) => '<div class="pista-card"><div class="jugador anim"><span class="jugador-num" style="background:var(--text-muted)">' + (idx + 1) + '</span><span class="jugador-nombre">' + j.nombre + '</span><button class="jugador-delete" onclick="eliminar(' + (enPistas + idx) + ')">×</button></div></div>').join('');
+    }
+  } else {
+    if (colaJugadores.length === 0 && numPistas > 0) htmlCola = '<div class="empty-pista">Todos en pista</div>';
+    else if (numPistas > 0) htmlCola += colaJugadores.map((j, idx) => '<div class="pista-card"><div class="jugador anim"><span class="jugador-num" style="background:var(--text-muted)">' + (enPistas + idx + 1) + '</span><span class="jugador-nombre">' + j.nombre + '</span><button class="jugador-delete" onclick="eliminar(' + (enPistas + idx) + ')">×</button></div></div>').join('');
+    else if (numPistas === 0) htmlCola = '<div class="empty-pista">Nadie en cola</div>';
+  }
+  colaContainer.innerHTML = htmlCola;
+  const isInscrito = data.inscritos.some(i => i.nombre.toLowerCase() === input.value.toLowerCase());
+  btnApuntar.disabled = isInscrito && input.value.trim() !== '';
+  btnApuntar.textContent = isInscrito && input.value.trim() !== '' ? '¡Apuntado!' : '¡Me apunto!';
+}
+
+function save() { saveAPI(); }
+function renderHistorico() {
+  const container = document.getElementById('historico');
+  if (historico.length === 0) { container.innerHTML = '<div class="empty-pista">Sin histórico</div>'; return; }
+  container.innerHTML = historico.map((h, idx) => '<div class="pista-card historico-item" onclick="toggleHI(' + idx + ')"><div class="pista-header"><span class="pista-nombre">' + getFechaFormateada(h.fecha) + '</span><span class="pista-badge">' + h.inscritos.length + ' ▾</span></div><div class="pista-jugadores" id="h-' + idx + '" style="display:none">' + h.inscritos.map((j, i) => '<div class="jugador"><span class="jugador-num">' + (i + 1) + '</span><span class="jugador-nombre">' + j.nombre + '</span></div>').join('') + '</div></div>').join('');
+}
+function toggleHI(idx) { document.getElementById('h-' + idx).style.display = document.getElementById('h-' + idx).style.display === 'none' ? 'block' : 'none'; }
+
+async function reloadData() {
+  try {
+    const res = await fetch(`${BASE_URL}/${BIN_ID}/latest`, {
+      headers: { 'X-Master-Key': API_KEY }
+    });
+    const db = await res.json();
+    console.log('Reload:', db);
+    if (db.record) {
+      data = db.record.data || data;
+      historico = db.record.historico || [];
+    } else if (db.data) {
+      data = db.data;
+      historico = db.historico || [];
+    }
+  } catch (e) { console.error('Reload error:', e); }
+}
+
+async function apuntar() {
+  await reloadData();
+  if (data.cerrada) return;
+  const input = document.getElementById('nombreInput');
+  const nombre = input.value.trim();
+  const error = document.getElementById('error');
+  if (!nombre) { error.textContent = 'Escribe tu nombre'; error.classList.add('visible'); return; }
+  if (data.inscritos.some(i => i.nombre.toLowerCase() === nombre.toLowerCase())) { error.textContent = 'Ya estás apuntan'; error.classList.add('visible'); return; }
+  error.classList.remove('visible');
+  data.cerrada = false;
+  data.inscritos.push({ nombre, timestamp: Date.now() });
+  save();
+  render();
+  input.value = '';
+}
+
+async function eliminar(index) {
+  await reloadData();
+  const jugador = data.inscritos[index];
+  if (confirm('¿Eliminar a ' + jugador.nombre + '?')) {
+    data.inscritos.splice(index, 1);
+    save();
+    render();
+  }
+}
+
+async function toggleCerrar() {
+  await reloadData();
+  data.cerrada = !data.cerrada;
+  save();
+  render();
+}
+
+async function resetAll() {
+  await reloadData();
+  if (data.inscritos.length > 0) { 
+    const yaExiste = historico.some(h => h.fecha === data.fecha);
+    if (!yaExiste) { historico.unshift({ fecha: data.fecha, hora: data.hora, inscritos: data.inscritos }); saveAPI(); }
+  }
+  if (confirm('¿Nueva semana?')) { data = { fecha: getProximoDomingo(), hora: data.hora || '10:00', cerrada: false, inscritos: [] }; save(); render(); renderHistorico(); }
+}
+
+async function nuevaConvocatoria() {
+  await reloadData();
+  document.getElementById('modalFecha').value = data.fecha;
+  document.getElementById('modalHora').value = data.hora;
+  document.getElementById('modalNueva').classList.add('visible');
+}
+
+function cerrarModal() { document.getElementById('modalNueva').classList.remove('visible'); }
+
+function confirmarNuevaConvocatoria() {
+  const nuevaFecha = document.getElementById('modalFecha').value;
+  const nuevaHora = document.getElementById('modalHora').value;
+  if (!nuevaFecha || !nuevaHora) { alert('Completa fecha y hora'); return; }
+  if (data.cerrada && data.inscritos.length > 0) { 
+    const yaExiste = historico.some(h => h.fecha === data.fecha);
+    if (!yaExiste) { historico.unshift({ fecha: data.fecha, hora: data.hora, inscritos: data.inscritos }); }
+  }
+  data = { fecha: nuevaFecha, hora: nuevaHora, cerrada: false, inscritos: [] }; 
+  save(); 
+  cerrarModal(); 
+  render(); 
+  renderHistorico();
+}
+
+function toggleHistorico() { const el = document.getElementById('historico'); el.style.display = el.style.display === 'none' ? 'block' : 'none'; }
+
+async function init() {
+  try {
+    await loadAPI();
+    console.log('Init with data:', data);
+    render();
+    renderHistorico();
+  } catch(e) {
+    console.error('Init error:', e);
+    document.getElementById('fecha').textContent = 'Error cargando datos';
+  }
+}
+
+document.getElementById('nombreInput').addEventListener('input', render);
+document.getElementById('nombreInput').addEventListener('keypress', e => { if (e.key === 'Enter') apuntar(); });
+
+init();
