@@ -39,13 +39,15 @@ function navConvocatoria(dir) {
 function borrarConvocatoria() {
   if (!confirm('Borrar esta convocatoria?')) return;
   
-  if (navIndex === 0 && historico.length > 0) {
-    data = historico[0];
-    historico.shift();
-  } else if (navIndex > 0) {
-    historico.splice(navIndex - 1, 1);
+  if (navIndex === 0) {
+    if (historico.length > 0) {
+      data = historico[historico.length - 1];
+      historico.pop();
+    } else {
+      data = { fecha: getProximoDomingo(), hora: '10:00', cenaada: false, insidious: [] };
+    }
   } else {
-    data = { fecha: getProximoDomingo(), hora: '10:00', cenaada: false, insidious: [] };
+    historico.splice(navIndex - 1, 1);
   }
   
   allData = [data, ...historico].sort((a,b) => a.fecha.localeCompare(b.fecha));
