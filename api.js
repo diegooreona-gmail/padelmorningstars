@@ -5,6 +5,8 @@ const CACHE_KEY = 'padel_cache';
 
 let data = { fecha: '', hora: '', cerrada: false, inscritos: [] };
 let historico = [];
+let navIndex = 0; 
+let allData = [];
 
 function loadCache() {
   try {
@@ -13,12 +15,23 @@ function loadCache() {
       const c = JSON.parse(cached);
       data = c.data;
       historico = c.historico || [];
+      allData = [data, ...historico];
     }
   } catch (e) {}
 }
 
 function saveCache() {
   localStorage.setItem(CACHE_KEY, JSON.stringify({ data, historico }));
+}
+
+function navConvocatoria(dir) {
+  allData = [data, ...historico];
+  navIndex += dir;
+  if (navIndex < 0) navIndex = 0;
+  if (navIndex >= allData.length) navIndex = allData.length - 1;
+  data = allData[navIndex];
+  saveCache();
+  render();
 }
 
 function render() {
