@@ -56,14 +56,15 @@ function getProximoDomingo() {
 }
 
 function getFechaFormateada(fechaISO) {
+  if (!fechaISO) return 'Sin fecha';
   const fecha = new Date(fechaISO + 'T12:00:00');
   return fecha.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
-function getHoraFormateada(hora) { return hora; }
+function getHoraFormateada(hora) { return hora || ''; }
 
 function render() {
-  document.getElementById('fecha').textContent = getFechaFormateada(data.fecha) + ' a las ' + getHoraFormateada(data.hora);
+  document.getElementById('fecha').textContent = getFechaFormateada(data.fecha) + (data.hora ? ' a las ' + getHoraFormateada(data.hora) : '');
   const btnCerrar = document.getElementById('btnCerrar');
   btnCerrar.textContent = data.cerrada ? 'Abrir Convocatoria' : 'Cerrar Convocatoria';
   const input = document.getElementById('nombreInput');
@@ -204,6 +205,7 @@ function toggleHistorico() { const el = document.getElementById('historico'); el
 
 async function init() {
   try {
+    document.getElementById('fecha').textContent = 'Cargando...';
     await loadAPI();
     console.log('Init with data:', data);
     render();
